@@ -3,6 +3,8 @@
 
 #include "Irc.hpp"
 
+extern bool	servShutdown;
+
 class Server
 {
 	private:
@@ -19,7 +21,8 @@ class Server
 		// Socket Preparartion
 		void			setHints();
 		int				setServinfo(char *port);
-		int				startServer(void);
+		int				startServer();
+		int				loopServer();
 		// Accessors
 		std::string		getPort() const;
 		std::string		getPassword() const;

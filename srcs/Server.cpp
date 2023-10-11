@@ -23,7 +23,7 @@ void 			Server::setHints()
 
 int 			Server::setServinfo(char *port)
 {
-	if (getaddrinfo(NULL, port, &_hints, &_servinfo) < 0)
+	if (getaddrinfo(NULL, port, &_hints, &_servinfo) != SUCCESS)
 	{
 		std::cerr << "SERVER - addrinfo Failure" << std::endl;
 		return (FAILURE);
@@ -40,23 +40,38 @@ int 			Server::startServer()
 		return (FAILURE);
 	}
 	int opt = 1;
-	if (setsockopt(_socketfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == FAILURE)
-	{
-		std::cerr << "SERVER - SetSockOpt Failure" << std::endl;
-		return (freeaddrinfo(_servinfo), FAILURE);
+	try {
+		setsockopt(_socketfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+		bind(_socketfd, _servinfo->ai_addr, _servinfo->ai_addrlen);
+		listen(_socketfd, BACKLOG);
 	}
-	std::cout << "bind arguments: " << _socketfd << " " << _servinfo->ai_addrlen << std::endl;
-	if (bind(_socketfd, _servinfo->ai_addr, _servinfo->ai_addrlen) == FAILURE)
-	{
-		std::cerr << "SERVER - Bind Failure" << std::endl;
-		return (freeaddrinfo(_servinfo), FAILURE);
-	}
-	if (listen(_socketfd, BACKLOG) == FAILURE)
-	{
-		std::cerr << "SERVER - Listen Failure" << std::endl;
+	catch (std::exception &e) {
+		std::cerr << "SERVER ERROR - " << e.what()  << std::endl;
 		return (freeaddrinfo(_servinfo), FAILURE);
 	}
 	freeaddrinfo(_servinfo);
+	std::cout << "Server launch was a success!" << std::endl;
+	return (SUCCESS);
+}
+
+// SERVER MANAGEMENT
+
+int				Server::loopServer() {
+	std::vector<pollfd>	fds;
+	pollfd				serv_fd;
+
+	serv_fd.fd = _socketfd;
+	serv_fd.events = POLLIN;
+
+	fds.push_back(serv_fd);
+	while (servShutdown == false) {
+		if (poll((pollfd *)&fds[0], (unsigned int)fds.size(), -1) <= SUCCESS) {
+			if (errno == EINTR) //Signal MG
+				break ;
+			std::cerr << "SERVER - Poll Failure" << std::endl;
+			throw;
+		}
+	}
 	return (SUCCESS);
 }
 
@@ -66,8 +81,8 @@ std::string		Server::getPort() const { return (_port); }
 
 std::string		Server::getPassword() const { return (_password); }
 
-std::string		Server::getMotD() const { return (_MotD); }
-
 void			Server::setPassword(std::string new_pw) { _password = new_pw; }
+
+std::string		Server::getMotD() const { return (_MotD); }
 
 void			Server::setMotD(std::string buffer) { _MotD = buffer; }

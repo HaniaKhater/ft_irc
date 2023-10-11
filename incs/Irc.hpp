@@ -9,6 +9,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <csignal>
+#include <poll.h>
+#include <vector>
 
 #define SUCCESS 0
 #define FAILURE -1

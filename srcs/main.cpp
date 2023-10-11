@@ -9,7 +9,7 @@ static void signalHandler(int signal) {
 
 int	main(int ac, char **av) {
 	if (ac != 3) {
-		std::cout << "Invalid input. Please try ./ircserv [port] [password]" << std::endl;
+		std::cout << "Invalid input. Please try ./ircserv <port> <password>" << std::endl;
 		return (FAILURE);
 	}
 	signal(SIGINT, signalHandler);
@@ -22,6 +22,12 @@ int	main(int ac, char **av) {
 	if (server.startServer() == FAILURE) {
 		std::cerr << "MAIN - startServer Failure" << std::endl;
 		return(FAILURE);
+	}
+	try {
+		server.loopServer();
+	}
+	catch (const std::exception &e) {
+		std::cerr << "loopServer exception: " << e.what() << std::endl;
 	}
 	return (SUCCESS);
 }
