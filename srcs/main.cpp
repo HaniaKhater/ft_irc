@@ -1,33 +1,71 @@
-#include "../incs/Server.hpp"
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   main.cpp                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: mfaucheu <mfaucheu@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2023/10/13 03:14:40 by nicolas           #+#    #+#             */
+/*   Updated: 2023/10/26 01:06:37 by nicolas          ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
 
-bool	servShutdown = false;
+#include "Server.hpp"
 
-static void signalHandler(int signal) {
-	(void)signal;
-	servShutdown = true;
+volatile sig_atomic_t g_serverExit = false;
+
+static void	putExpectedUsage(void)
+{
+	std::cout << "Expected usage: ./ircserv <port> <password>." << std::endl;
 }
 
-int	main(int ac, char **av) {
-	if (ac != 3) {
-		std::cout << "Invalid input. Please try ./ircserv <port> <password>" << std::endl;
-		return (FAILURE);
+static void	putErrorMessage(const std::string str)
+{
+	std::cerr << "Error : " << str << "." << std::endl;
+}
+
+static bool	verifyArguments(int argc, char **argv)
+{
+	if (argc != 3)
+	{
+		std::ostringstream	errorMsg;
+		errorMsg << "2 arguments expected, " << (argc - 1) << " received";
+		putErrorMessage(errorMsg.str());
+		putExpectedUsage();
+		return (true);
 	}
-	signal(SIGINT, signalHandler);
-	Server	server(av[1], av[2]);
-	server.setHints();
-	if (server.setServinfo(av[1]) == FAILURE) {
-		std::cerr << "MAIN - setServinfo Failure" << std::endl;
-		return(FAILURE);
+	else if (!*argv[1] || !*argv[2])
+	{
+		putErrorMessage("empty arguments aren't permitted");
+		putExpectedUsage();
+		return (true);
 	}
-	if (server.startServer() == FAILURE) {
-		std::cerr << "MAIN - startServer Failure" << std::endl;
-		return(FAILURE);
+	return (false);
+}
+
+// argv[1] == 'port'
+// argv[2] == 'password'
+int	main(int argc, char **argv)
+{
+	if (verifyArguments(argc, argv))
+		return (1);
+
+	signal(SIGINT, sigintHandler);
+
+	try
+	{
+		ServerSockets::t_serverconfig	serverConfig;
+		serverConfig = ServerSockets::buildServerConfig(AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP,
+			"localhost", argv[1]);
+
+		Server	serv(serverConfig, argv[2]);
 	}
-	try {
-		server.loopServer();
+	catch (const std::exception &e)
+	{
+		std::cerr << e.what() << std::endl;
 	}
-	catch (const std::exception &e) {
-		std::cerr << "loopServer exception: " << e.what() << std::endl;
-	}
-	return (SUCCESS);
+
+	signal(SIGINT, SIG_DFL);
+
+	return (0);
 }
