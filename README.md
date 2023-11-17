@@ -1,5 +1,7 @@
 # ft_irc
 
+Reference client: HexChat
+
 IRC stands for Internet Chat Relay.Our project is creating our own IRC server acessible by an actual IRC client. Internet is ruled by solid standards protocols that allow connected computers to interact with each other. Let's discover this.
 
 ## Subject
