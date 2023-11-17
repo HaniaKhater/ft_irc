@@ -6,10 +6,11 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/10/20 14:50:37 by nplieger          #+#    #+#             */
-/*   Updated: 2023/11/03 01:59:03 by nicolas          ###   ########.fr       */
+/*   Updated: 2023/11/15 11:37:44 by nicolas          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#include "Server.hpp"
 #include "Channel.hpp"
 
 /* Constructors & Destructors */
@@ -18,31 +19,35 @@
 
 Channel::Channel(const std::string &name):
 	_name(truncate(name, MAX_CHANNELNAME_LEN)),
+	_modesMask(NO_EXTERNAL_MESSAGES | TOPIC_LOCK),
 	_userLimit(-1),
-	_modeMask(0)
+	_password("")
 {
 	if (DEBUG)
 	{
 		std::cout << GRAY;
 		std::cout << "Channel: default constructor called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
+	std::cout << GREEN << "Channel " << BGREEN <<_name << GREEN << " has been created" << WHITE << std::endl;
 }
 
 Channel::Channel(const Channel &other):
 	_name(other._name),
 	_topic(other._topic),
+	_modesMask(other._modesMask),
 	_users(other._users),
 	_invitedClients(other._invitedClients),
 	_userLimit(other._userLimit),
-	_modeMask(other._modeMask)
+	_password(other._password)
 {
 	if (DEBUG)
 	{
 		std::cout << GRAY;
 		std::cout << "Channel: copy constructor called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
+	std::cout << GREEN << "Channel " << BGREEN <<_name << GREEN << " has been created" << WHITE << std::endl;
 }
 
 Channel	&Channel::operator=(const Channel &other)
@@ -51,17 +56,18 @@ Channel	&Channel::operator=(const Channel &other)
 	{
 		std::cout << GRAY;
 		std::cout << "Channel: assignment operator called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
 
 	if (this != &other)
 	{
 		_name = other._name;
 		_topic = other._topic;
+		_modesMask = other._modesMask;
 		_users = other._users;
 		_invitedClients = other._invitedClients;
 		_userLimit = other._userLimit;
-		_modeMask = other._modeMask;
+		_password = other._password;
 	}
 
 	return (*this);
@@ -73,21 +79,27 @@ Channel::~Channel(void)
 	{
 		std::cout << GRAY;
 		std::cout << "Channel: default destructor called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
+
+	_users.clear();
+	_invitedClients.clear();
+	std::cout << GREEN << "Channel " << BGREEN <<_name << GREEN << " has been deleted" << WHITE << std::endl;
 }
 	/* Protected */
 	/* Private */
 
 Channel::Channel(void):
 	_name(""),
-	_userLimit(-1)
+	_modesMask(0),
+	_userLimit(-1),
+	_password("")
 {
 	if (DEBUG)
 	{
 		std::cout << GRAY;
 		std::cout << "Channel: default constructor called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
 }
 
@@ -109,7 +121,7 @@ void	Channel::removeUser(const Client* client)
 {
 	UsersIterator	it = _users.begin();
 
-	for (; it != _users.end() && it->client != client; it++);
+	for (; it != _users.end() && it->client != client; ++it);
 
 	if (it != _users.end())
 		_users.erase(it);
@@ -119,7 +131,7 @@ void	Channel::removeInvitation(Client *client)
 {
 	ClientsIterator	it = _invitedClients.begin();
 
-	for (; it != _invitedClients.end() && client != *it; it++);
+	for (; it != _invitedClients.end() && client != *it; ++it);
 
 	if (it != _invitedClients.end())
 		_invitedClients.erase(it);
@@ -143,9 +155,18 @@ bool	Channel::isInvited(Client *client)
 {
 	ClientsIterator	it = _invitedClients.begin();
 
-	for (; it != _invitedClients.end() && *it != client; it++);
+	for (; it != _invitedClients.end() && *it != client; ++it);
 
 	if (it != _invitedClients.end())
+		return (true);
+	return (false);
+}
+
+bool	Channel::isOwner(const Client *client)
+{
+	const User	*user = getUser(client->getNickname());
+
+	if (user && areBitsSet(user->modesMask, OWNER))
 		return (true);
 	return (false);
 }
@@ -161,39 +182,188 @@ bool	Channel::isClientRegistered(const Client* client) const
 	return (false);
 }
 
-bool	Channel::canKick(const Client *client)
+bool	Channel::canKick(const Client *source, const Client *target)
 {
-	const User	*user = Channel::getUser(client->getNickname());
+	const User	*sourceUser = Channel::getUser(source->getNickname());
+	const User	*targetUser = Channel::getUser(target->getNickname());
 
-	if (!user)
-		return (false);
-	if (areBitsSet(user->modesMask, OPERATOR | HALF_OPERATOR | OWNER))
-		return (true);
+	if (sourceUser && targetUser)
+	{
+		const int	&sourceModesMask = getUserModesMask(sourceUser);
+		const int	&targetModesMask = getUserModesMask(targetUser);
+
+		if (areBitsSet(source->getClientModesMask(), Client::OPERATOR))
+			return (true);
+		else if (areBitsSet(sourceModesMask, OWNER)
+			&& !isAtLeastOneBitSet(targetModesMask, OWNER))
+			return (true);
+		else if (areBitsSet(sourceModesMask, ADMIN)
+			&& !isAtLeastOneBitSet(targetModesMask, OWNER | ADMIN))
+			return (true);
+		else if (areBitsSet(sourceModesMask, OPERATOR)
+			&& !isAtLeastOneBitSet(targetModesMask, OWNER | ADMIN | OPERATOR))
+			return (true);
+		else if (areBitsSet(sourceModesMask, HALF_OPERATOR)
+			&& !isAtLeastOneBitSet(targetModesMask, OWNER | ADMIN | OPERATOR | HALF_OPERATOR))
+			return (true);
+	}
 	return (false);
 }
 
 bool	Channel::canInvite(const Client *client)
 {
+	if (areBitsSet(client->getClientModesMask(), Client::OPERATOR))
+		return (true);
+
 	const User	*user = Channel::getUser(client->getNickname());
 
-	if (!user)
-		return (false);
-	if (areBitsSet(user->modesMask, OPERATOR | HALF_OPERATOR | OWNER))
+	if (user && isAtLeastOneBitSet(getUserModesMask(user),
+		HALF_OPERATOR | OPERATOR | ADMIN | OWNER))
 		return (true);
 	return (false);
 }
 
 bool	Channel::canChangeTopic(const Client *client)
 {
+	if (areBitsSet(client->getClientModesMask(), Client::OPERATOR)
+		|| areBitsNotSet(_modesMask, TOPIC_LOCK))
+		return (true);
+
 	const User	*user = Channel::getUser(client->getNickname());
 
-	if (!user)
-		return (false);
-	if (areBitsNotSet(_modeMask, TOPIC_LOCK))
-		return (true);
-	else if (areBitsSet(user->modesMask, OPERATOR | OWNER))
+	if (user && isAtLeastOneBitSet(getUserModesMask(user),
+		OPERATOR | ADMIN | OWNER))
 		return (true);
 	return (false);
+}
+
+bool	Channel::canTalk(const Client *client)
+{
+	if (areBitsNotSet(_modesMask, MODERATED)
+		|| areBitsSet(client->getClientModesMask(), Client::OPERATOR))
+		return (true);
+
+	const User	*user = Channel::getUser(client->getNickname());
+
+	if (user && isAtLeastOneBitSet(getUserModesMask(user),
+		VOICE | OPERATOR | ADMIN | OWNER))
+		return (true);
+	return (false);
+}
+
+bool	Channel::canUpdateModes(const Client *client)
+{
+	if (areBitsSet(client->getClientModesMask(), Client::OPERATOR))
+		return (true);
+
+	const User	*user = Channel::getUser(client->getNickname());
+
+	if (user && isAtLeastOneBitSet(getUserModesMask(user),
+		OPERATOR | ADMIN | OWNER))
+		return (true);
+	return (false);
+}
+
+
+
+int	Channel::addChannelMode(const char &mode, const std::string &argument)
+{
+	int	mask = Channel::channelModeToMask(mode);
+
+	if (!mask)
+		return (MODE_INVALID);
+	else if (areBitsSet(_modesMask, mask)
+		&& mask != KEY_PASS && mask != USER_LIMIT)
+		return (MODE_UNCHANGED);
+	else
+	{
+		if (mask == KEY_PASS)
+		{
+			setPassword(argument);
+
+			if (areBitsSet(_modesMask, USER_LIMIT) && _password.empty())
+				removeBits(_modesMask, mask);
+			else
+				setBits(_modesMask, mask);
+		}
+		else if (mask == USER_LIMIT)
+		{
+			setUserLimit(argument);
+
+			if (areBitsSet(_modesMask, USER_LIMIT) && _userLimit == -1)
+				removeBits(_modesMask, mask);
+			else
+				setBits(_modesMask, mask);
+		}
+		else
+			setBits(_modesMask, mask);
+
+		return (MODE_CHANGED);
+	}
+}
+
+int	Channel::removeChannelMode(const char &mode)
+{
+	int	mask = Channel::channelModeToMask(mode);
+
+	if (!mask)
+		return (MODE_INVALID);
+	else if (areBitsNotSet(_modesMask, mask))
+		return (MODE_UNCHANGED);
+	else
+		return (removeBits(_modesMask, mask), MODE_CHANGED);
+}
+
+int	Channel::addUserMode(User *targetUser, const char &mode, const std::string &argument)
+{
+	if (!targetUser)
+		return (MODE_UNCHANGED);
+
+	(void)argument;
+
+	int	mask = Channel::userModeToMask(mode);
+
+	if (!mask)
+		return (MODE_INVALID);
+	else if (areBitsSet(targetUser->modesMask, mask))
+		return (MODE_UNCHANGED);
+	else
+		return (setBits(targetUser->modesMask, mask), MODE_CHANGED);
+}
+
+int	Channel::removeUserMode(User *targetUser, const char &mode)
+{
+	if (!targetUser)
+		return (MODE_UNCHANGED);
+
+	int	mask = Channel::userModeToMask(mode);
+
+	if (!mask)
+		return (MODE_INVALID);
+	else if (areBitsNotSet(targetUser->modesMask, mask))
+		return (MODE_UNCHANGED);
+	else
+		return (removeBits(targetUser->modesMask, mask), MODE_CHANGED);
+}
+
+Channel::User	*Channel::findFirstHighestPrivilege(void)
+{
+	UsersIterator	it = _users.begin();
+	User			*user = NULL;
+
+	if (it != _users.end())
+	{
+		user = &(*it);
+		it++;
+	}
+
+	for (; it != _users.end(); ++it)
+	{
+		if (it->modesMask > user->modesMask)
+			user = &(*it);
+	}
+
+	return (user);
 }
 
 	/* Protected */
@@ -223,25 +393,75 @@ const std::string	&Channel::getTopic(void) const
 	return (_topic);
 }
 
+const std::string	Channel::getUserLimit(void) const
+{
+	std::ostringstream	oss;
+
+	oss << _userLimit;
+	return (oss.str());
+}
+
+const std::string &Channel::getPassword(void) const
+{
+	return (_password);
+}
+
 Channel::User	*Channel::getUser(const std::string &nickname)
 {
 	UsersIterator	it = _users.begin();
 
-	for (; it != _users.end() && it->client->getNickname() != nickname; it++);
+	for (; it != _users.end() && it->client->getNickname() != nickname; ++it);
 
 	if (it != _users.end())
 		return (&(*it));
 	return (NULL);
 }
 
-const int	&Channel::getModeMask(void) const
-{
-	return (_modeMask);
-}
-
 const Channel::Users	&Channel::getUsers(void) const
 {
 	return (_users);
+}
+
+const std::string	Channel::getChannelModes(void) const
+{
+	return (Channel::channelMaskToModes(_modesMask));
+}
+
+int	Channel::getChannelModesMask(void) const
+{
+	return (_modesMask);
+}
+
+const std::string	Channel::getUserModes(const User *targetUser) const
+{
+	if (!targetUser)
+		return ("");
+	return (Channel::userMaskToModes(targetUser->modesMask));
+}
+
+int	Channel::getUserModesMask(const User *targetUser) const
+{
+	if (!targetUser)
+		return (0);
+	return (targetUser->modesMask);
+}
+
+const std::string	Channel::getUserPrefix(const User *targetUser) const
+{
+	std::string	prefix;
+
+	if (!targetUser)
+		return (prefix);
+
+	if (areBitsSet(targetUser->client->getClientModesMask(), Client::OPERATOR)
+		|| isAtLeastOneBitSet(getUserModesMask(targetUser), OWNER | ADMIN | OPERATOR))
+		prefix = "@";
+	else if (areBitsSet(getUserModesMask(targetUser), HALF_OPERATOR))
+		prefix = "%";
+	else if (areBitsSet(getUserModesMask(targetUser), Channel::VOICE))
+		prefix = "+";
+
+	return (prefix);
 }
 
 	/* Protected */
@@ -256,9 +476,40 @@ void	Channel::setTopic(const std::string &topic)
 	_topic = truncate(topic, MAX_TOPIC_LEN);
 }
 
-void	Channel::setModeMask(const int &mask)
+void	Channel::setUserLimit(const std::string &userLimit)
 {
-	setBits(_modeMask, mask);
+	int	limit;
+	std::istringstream	iss(userLimit);
+
+	if (iss >> limit)
+	{
+		if (limit <= 0)
+			limit = -1;
+		_userLimit = limit;
+	}
+	else
+	{
+		// Error message ? Keep the old value.
+	}
+}
+
+void	Channel::setPassword(const std::string &password)
+{
+	if (!password.empty())
+		_password = password;
+}
+
+void	Channel::setChannelModesMask(const int &mask)
+{
+	setBits(_modesMask, mask);
+}
+
+void	Channel::setUserModesMask(User *targetUser, const int &mask)
+{
+	if (!targetUser)
+		return ;
+
+	setBits(targetUser->modesMask, mask);
 }
 
 	/* Protected */
@@ -266,133 +517,130 @@ void	Channel::setModeMask(const int &mask)
 
 /* Static functions */
 
+	/* Public */
+
 int	Channel::defaultUserPerms(void)
 {
-	return (INVISIBLE | WALLOPS | SERVER_NOTICE);
+	return (0);
 }
 
 int	Channel::defaultHalfOpsPerms(void)
 {
-	return (INVISIBLE | WALLOPS | SERVER_NOTICE | HALF_OPERATOR);
+	return (HALF_OPERATOR);
 }
 
 int	Channel::defaultOpsPerms(void)
 {
-	return (INVISIBLE | WALLOPS | SERVER_NOTICE | VOICE | OPERATOR);
+	return (VOICE | OPERATOR);
 }
 
 int	Channel::defaultAdminPerms(void)
 {
-	return (INVISIBLE | WALLOPS | SERVER_NOTICE | VOICE | ADMIN);
+	return (VOICE | ADMIN);
 }
 
 int	Channel::defaultOwnerPerms(void)
 {
-	return (INVISIBLE | WALLOPS | SERVER_NOTICE | VOICE | ADMIN | OWNER);
+	return (VOICE | OWNER);
 }
 
-int	Channel::channelModesToMask(const std::string &modes)
+bool	Channel::isChannelMode(const char &mode)
 {
-	int	mask = 0;
+	if (strchr(MODES_CHANNEL, mode) != NULL)
+		return (true);
+	return (false);
+}
 
-	for (size_t i = 0; i < modes.length(); i++)
+bool	Channel::isUserMode(const char &mode)
+{
+	if (strchr(MODES_USER, mode) != NULL)
+		return (true);
+	return (false);
+}
+
+
+	/* Protected */
+	/* Private */
+
+int	Channel::channelModeToMask(const char &mode)
+{
+	switch (mode)
 	{
-		switch (modes[i])
-		{
-			case 't':
-				setBits(mask, TOPIC_LOCK);
-				break ;
-			case 'i':
-				setBits(mask, INVITE_ONLY);
-				break ;
-			case 'n':
-				setBits(mask, NO_EXTERNAL_MESSAGES);
-				break ;
-			case 'm':
-				setBits(mask, MODERATED);
-				break ;
-			case 'l':
-				setBits(mask, USER_LIMIT);
-				break ;
-			case 'k':
-				setBits(mask, KEY_PASS);
-				break ;
-			case 'p':
-				setBits(mask, PRIVATE);
-				break ;
-			case 's':
-				setBits(mask, SECRET);
-				break ;
-			default:
-				break ;
-		}
+		case 't':
+			return (TOPIC_LOCK);
+		case 'i':
+			return (INVITE_ONLY);
+		case 'n':
+			return (NO_EXTERNAL_MESSAGES);
+		case 'm':
+			return (MODERATED);
+		case 'l':
+			return (USER_LIMIT);
+		case 'k':
+			return (KEY_PASS);
+		case 'p':
+			return (PRIVATE);
+		case 's':
+			return (SECRET);
+		default:
+			return (0);
 	}
-	return (mask);
 }
 
 std::string	Channel::channelMaskToModes(const int &mask)
 {
 	std::string	modes;
-	const char	bitToChar[] = {'t', 'i', 'n', 'm', 'l', 'k', 'p', 's'};
+	const char	*channelModes = MODES_CHANNEL;
 
-	for (size_t shift = 0; shift < 8; shift++)
+	for (size_t shift = 0; shift < strlen(channelModes); ++shift)
 	{
 		if((mask >> shift) & 1)
-			modes += bitToChar[shift];
+			modes += channelModes[shift];
 	}
 
-	return (modes);
+	if (modes.empty())
+		return ("");
+	return ("+" + modes);
 }
 
-int	Channel::userModesToMask(const std::string &modes)
+int	Channel::userModeToMask(const char &mode)
 {
-	int	mask = 0;
-
-	for (size_t i = 0; i < modes.length(); i++)
+	switch (mode)
 	{
-		switch (modes[i])
-		{
-			case 'w':
-				setBits(mask, WALLOPS);
-				break ;
-			case 's':
-				setBits(mask, SERVER_NOTICE);
-				break ;
-			case 'x':
-				setBits(mask, SSL_TLS); // not used
-				break ;
-			case 'i':
-				setBits(mask, INVISIBLE);
-				break ;
-			case 'h':
-				setBits(mask, HALF_OPERATOR);
-				break ;
-			case 'o':
-				setBits(mask, OPERATOR);
-				break ;
-			case 'a':
-				setBits(mask, ADMIN);
-				break ;
-			case 'q':
-				setBits(mask, OWNER);
-				break ;
-			default:
-				break ;
-		}
+		case 'v':
+			return (VOICE);
+		case 'h':
+			return (HALF_OPERATOR);
+		case 'o':
+			return (OPERATOR);
+		case 'a':
+			return (ADMIN);
+		case 'q':
+			return (OWNER);
+		default:
+			return (0);
 	}
-	return (mask);
 }
 
 std::string	Channel::userMaskToModes(const int &mask)
 {
 	std::string	modes;
-	const char	bitToChar[] = {'w', 's', 'x', 'i', 'h', 'o', 'a', 'q'};
+	const char	*userModes = MODES_USER;
 
-	for (size_t shift = 0; shift < 8; shift++)
+	for (size_t shift = 0; shift < strlen(userModes); ++shift)
 	{
 		if((mask >> shift) & 1)
-			modes += bitToChar[shift];
+			modes += userModes[shift];
 	}
 
-	return (modes);
+	if (modes.empty())
+		return ("");
+	return ("+" + modes);
+}
+
+bool	Channel::isValidName(const std::string &name)
+{
+	if (!name.empty() && name[0] == '#' && name[1])
+		return (true);
+	return (false);
 }

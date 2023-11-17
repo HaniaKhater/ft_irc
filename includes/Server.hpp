@@ -6,7 +6,7 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/10/14 11:48:29 by nicolas           #+#    #+#             */
-/*   Updated: 2023/11/03 00:42:15 by nicolas          ###   ########.fr       */
+/*   Updated: 2023/11/15 11:22:17 by nicolas          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,21 +29,15 @@
 
 // MACROS
 
+#define SERVER_VERSION "ircserv-1.0.0 (alpha)"
+#define MOTD_PATH "./config/MOTD.config"
+
 #define CLIENT_CONNECTED 1
 #define CLIENT_DISCONNECTED 0
 
-#define DELIMITER "\n"			//"\r\n" for real IRC servers
+#define DELIMITER "\r\n"
 #define MSG_BUFFER_SIZE 512
 #define MAX_CONNECTION_RETRIES 3
-
-#define MAX_USERNAME_LEN 18
-#define MAX_NICKNAME_LEN 9
-#define MAX_TOPIC_LEN 306
-#define MAX_CHANNELNAME_LEN 50
-
-#define MOTD_PATH "./config/MOTD.config"
-
-#define SERVER_VERSION "ircserv-1.0.0 (alpha)"
 
 class	Client;
 class	Channel;
@@ -75,19 +69,18 @@ class	Server
 			std::string					message;
 		}	t_commandParams;
 
-		static t_commandParams	buildCommandParams(Client *source, struct pollfd *pollFd,
-			std::vector<std::string> &arguments, std::string &message);
-
 		typedef void (Server::*CommandFunction)(const t_commandParams &params);
 		typedef std::vector<struct pollfd>				PollFds;
 		typedef std::map<std::string, CommandFunction>	Commands;
 		typedef std::vector<Client*>					Clients;
 		typedef std::map<std::string, Channel*>			Channels;
+		typedef std::vector<std::string>				Arguments;
 
 		typedef PollFds::iterator						PollFdsIterator;
 		typedef Commands::iterator						CommandsIterator;
 		typedef Clients::iterator						ClientsIterator;
 		typedef Channels::iterator						ChannelsIterator;
+		typedef Arguments::const_iterator				ArgumentsIterator;
 
 		/* Attributs */
 
@@ -167,12 +160,17 @@ class	Server
 		void			motd(const t_commandParams &commandParams);
 		void			part(const t_commandParams &commandParams);
 		void			pass(const t_commandParams &commandParams);
+		void			ping(const t_commandParams &commandParams);
 
 		// Command utilities
 		bool			isCommand(const std::string &clientBuffer);
 		bool			verifyServerPermissions(const Client *client, const int &mask);
 		void			errCommand(const Client *client, const std::string &code,
 							const std::string &parameter, const std::string &trailing);
+
+		ArgumentsIterator	parseMode(const t_commandParams &commandParams,
+								Client *&targetClient, Channel *&targetChannel,
+								std::string &modes);
 
 		// Getters
 		Client				*getClient(const std::string &nickname);
@@ -184,4 +182,8 @@ class	Server
 								const std::string &arguments, const std::string &trailing) const;
 
 		// Setters
+
+		/* Static */
+		static t_commandParams	buildCommandParams(Client *source, struct pollfd *pollFd,
+			const Arguments &arguments, const std::string &message);
 };

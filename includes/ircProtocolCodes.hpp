@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   ircProtocolCodes.hpp                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: nicolas <marvin@42.fr>                     +#+  +:+       +#+        */
+/*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/10/26 00:06:27 by nicolas           #+#    #+#             */
-/*   Updated: 2023/11/03 00:19:01 by nicolas          ###   ########.fr       */
+/*   Updated: 2023/11/14 12:09:56 by hania            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,6 +49,7 @@
 #define RPL_MOTD "372"
 #define RPL_MOTDSTART "375"
 #define RPL_ENDOFMOTD "376"
+#define RPL_WHOISMODES "379"
 #define ERR_NOSUCHNICK "401"
 #define ERR_NOSUCHSERVER "402"
 #define ERR_NOSUCHCHANNEL "403"
@@ -57,7 +58,7 @@
 #define ERR_WASNOSUCHNICK "406"
 #define ERR_TOOMANYTARGETS "407"
 #define ERR_NOORIGIN "409"
-#define ERR_CANTLOADMODULE "410"
+#define ERR_INVALIDCAPCMD "410"
 #define ERR_NORECIPIENT "411"
 #define ERR_NOTEXTTOSEND "412"
 #define ERR_NOTOPLEVEL "413"

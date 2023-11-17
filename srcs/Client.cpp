@@ -6,7 +6,7 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/10/14 11:49:32 by nicolas           #+#    #+#             */
-/*   Updated: 2023/11/03 01:59:47 by nicolas          ###   ########.fr       */
+/*   Updated: 2023/11/15 10:57:30 by nicolas          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,7 @@ Client::Client(const ASocket::t_socket &serverSocket):
 	_activeChannel(NULL),
 	_serverPermissions(0),
 	_connectionRetries(1),
+	_modesMask(HIDE_HOSTNAME),
 	_nickname("*"),
 	_username("*"),
 	_hostname("*"),
@@ -31,8 +32,9 @@ Client::Client(const ASocket::t_socket &serverSocket):
 	{
 		std::cout << GRAY;
 		std::cout << "Client: parameter constructor called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
+	std::cout << PURPLE << "A new client has connected to the server" << WHITE << std::endl;
 }
 
 Client::Client(const Client &other):
@@ -40,6 +42,7 @@ Client::Client(const Client &other):
 	_activeChannel(other._activeChannel),
 	_serverPermissions(other._serverPermissions),
 	_connectionRetries(other._connectionRetries),
+	_modesMask(other._modesMask),
 	_nickname(other._nickname),
 	_username(other._username),
 	_hostname(other._hostname),
@@ -51,8 +54,9 @@ Client::Client(const Client &other):
 	{
 		std::cout << GRAY;
 		std::cout << "Client: copy constructor called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
+	std::cout << PURPLE << "A new client has connected to the server" << WHITE << std::endl;
 }
 
 Client	&Client::operator=(const Client &other)
@@ -61,7 +65,7 @@ Client	&Client::operator=(const Client &other)
 	{
 		std::cout << GRAY;
 		std::cout << "Client: assignment operator called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
 
 	if (this != &other)
@@ -70,6 +74,7 @@ Client	&Client::operator=(const Client &other)
 		_activeChannel = other._activeChannel;
 		_serverPermissions = other._serverPermissions;
 		_connectionRetries = other._connectionRetries;
+		_modesMask = other._modesMask;
 		_nickname = other._nickname;
 		_username = other._username;
 		_hostname = other._hostname;
@@ -87,8 +92,12 @@ Client::~Client(void)
 	{
 		std::cout << GRAY;
 		std::cout << "Client: default destructor called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
+
+	_activeChannel = NULL;
+	_joinedChannels.clear();
+	std::cout << BPURPLE << _nickname << PURPLE << " has left the server" << WHITE << std::endl;
 }
 	/* Protected */
 	/* Private */
@@ -98,6 +107,7 @@ Client::Client(void):
 	_activeChannel(NULL),
 	_serverPermissions(0),
 	_connectionRetries(1),
+	_modesMask(0),
 	_nickname("*"),
 	_username("*"),
 	_hostname("*"),
@@ -108,7 +118,7 @@ Client::Client(void):
 	{
 		std::cout << GRAY;
 		std::cout << "Client: default constructor called.";
-		std::cout << WHITE;
+		std::cout << WHITE << std::endl;
 	}
 }
 
@@ -152,7 +162,7 @@ void	Client::broadcastMessageToChannel(const Channel *channel,
 	std::string	response;
 	Channel::Users	users = channel->getUsers();
 
-	for (Channel::UsersIterator it = users.begin(); it != users.end(); it++)
+	for (Channel::UsersIterator it = users.begin(); it != users.end(); ++it)
 	{
 		if (this != it->client)
 			it->client->receiveMessage(message);
@@ -181,6 +191,32 @@ void	Client::quitChannel(Channel *channel)
 	channel->removeUser(this);
 	_joinedChannels.erase(channel->getName());
 	_activeChannel = NULL;
+}
+
+int	Client::addClientMode(const char &mode, const std::string &argument)
+{
+	int	mask = Client::clientModeToMask(mode);
+
+	(void)argument;
+
+	if (!mask)
+		return (MODE_INVALID);
+	else if (areBitsSet(_modesMask, mask))
+		return (MODE_UNCHANGED);
+	else
+		return (setBits(_modesMask, mask), MODE_CHANGED);
+}
+
+int	Client::removeClientMode(const char &mode)
+{
+	int	mask = Client::clientModeToMask(mode);
+
+	if (!mask)
+		return (MODE_INVALID);
+	else if (areBitsNotSet(_modesMask, mask))
+		return (MODE_UNCHANGED);
+	else
+		return (removeBits(_modesMask, mask), MODE_CHANGED);
 }
 
 	/* Protected */
@@ -246,6 +282,26 @@ Channel	*Client::getActiveChannel(void)
 	return (_activeChannel);
 }
 
+const std::string	Client::getClientModes(void) const
+{
+	return (Client::clientMaskToModes(_modesMask));
+}
+
+int	Client::getClientModesMask(void) const
+{
+	return (_modesMask);
+}
+
+const std::string	Client::getPrefix(void) const
+{
+	std::string	prefix;
+
+	if (areBitsSet(_modesMask, OPERATOR))
+		prefix += "~";
+
+	return (prefix);
+}
+
 	/* Protected */
 	/* Private */
 
@@ -299,15 +355,78 @@ void	Client::setRealname(const std::string &realname)
 	_realname = realname;
 }
 
-void	Client::setServerPermissions(const int &mask)
-{
-	setBits(_serverPermissions, mask);
-}
-
 void	Client::setActiveChannel(Channel *channel)
 {
 	_activeChannel = channel;
 }
 
+
+
+void	Client::setServerPermissions(const int &mask)
+{
+	setBits(_serverPermissions, mask);
+}
+
+void	Client::setClientModesMask(const int &mask)
+{
+	setBits(_modesMask, mask);
+}
+
 	/* Protected */
 	/* Private */
+
+/* Static */
+
+	/* Public */
+
+bool	Client::isClientMode(const char &mode)
+{
+	if (strchr(MODES_CLIENT, mode))
+		return (true);
+	return (false);
+}
+
+	/* Protected */
+	/* Private */
+
+int	Client::clientModeToMask(const char &mode)
+{
+	switch (mode)
+	{
+		case 'i':
+			return (INVISIBLE);
+		case 'w':
+			return (WALLOPS);
+		case 'o':
+			return (OPERATOR);
+		case 'x':
+			return (SSL_TLS);
+		case 'z':
+			return (HIDE_HOSTNAME);
+		default:
+			return (0);
+	}
+}
+
+std::string	Client::clientMaskToModes(const int &mask)
+{
+	std::string	modes;
+	const char	*clientModes = MODES_CLIENT;
+
+	for (size_t shift = 0; shift < strlen(clientModes); ++shift)
+	{
+		if((mask >> shift) & 1)
+			modes += clientModes[shift];
+	}
+
+	if (modes.empty())
+		return ("");
+	return ("+" + modes);
+}
+
+bool	Client::isValidNickname(const std::string &nickname)
+{
+	if (nickname.empty() || nickname.length() > MAX_NICKNAME_LEN || nickname[0] == '#')
+		return (false);
+	return (true);
+}

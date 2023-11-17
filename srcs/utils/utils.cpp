@@ -6,7 +6,7 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/10/29 11:14:21 by nicolas           #+#    #+#             */
-/*   Updated: 2023/10/30 13:26:02 by nicolas          ###   ########.fr       */
+/*   Updated: 2023/11/10 15:24:49 by nicolas          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,11 +41,9 @@ size_t	findLastChar(const std::string &str, const size_t &strLen)
 
 void	capitalizeString(std::string &str)
 {
-	for (std::string::size_type i = 0; i < str.length(); i++)
-	{
+	for (std::string::size_type i = 0; i < str.length(); ++i)
 		if (islower(str[i]))
 			str[i] = toupper(str[i]);
-	}
 }
 
 std::string	getNextWord(std::string &str, const std::string &delimiter)
@@ -74,30 +72,52 @@ std::string	truncate(const std::string &str, const size_t &width)
 	return (str);
 }
 
+void	stripDuplicateChars(std::string &str)
+{
+	for (size_t i = 0; i < str.length(); ++i)
+	{
+		size_t j = i + 1;
+		for (; j < str.length(); ++j)
+		{
+			if (str[i] == str[j])
+				str.erase(j);
+		}
+	}
+}
+
+long int	validatePresenceInString(const std::string &str, const std::string &charset)
+{
+	long int	charPresenceValidations = 0;
+
+	for (size_t i = 0; i < charset.length(); ++i)
+	{
+		for (size_t j = 0; j < str.length(); ++j)
+		{
+			if (charset[i] == str[j])
+			{
+				charPresenceValidations++;
+				continue ;
+			}
+		}
+	}
+	return (charPresenceValidations);
+}
+
 /* ************************************************************************** */
 /* *                            BitMasks handling                           * */
 /* ************************************************************************** */
 
 bool	areBitsSet(const int &mask, const int &bits)
 {
-	if ((mask & bits) == bits)
-		return (true);
-	return (false);
+	return ((mask & bits) == bits);
 }
 
 bool	areBitsNotSet(const int &mask, const int &bits)
 {
-	if ((mask & bits) != bits)
-		return (true);
-	return (false);
+	return ((mask & bits) != bits);
 }
 
-/* ************************************************************************** */
-
-
-std::string truncateStr(std::string str, size_t width)
+bool	isAtLeastOneBitSet(const int &mask, const int &bits)
 {
-    if (str.length() > width)
-            return str.substr(0, width);
-    return str;
+	return ((mask & bits) != 0);
 }

@@ -6,7 +6,7 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/10/14 11:56:13 by nicolas           #+#    #+#             */
-/*   Updated: 2023/10/31 22:23:10 by nicolas          ###   ########.fr       */
+/*   Updated: 2023/11/10 14:45:09 by nicolas          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,6 +23,15 @@
 
 // MACROS
 
+#define MODE_CHANGED 1
+#define MODE_UNCHANGED 0
+#define MODE_INVALID -1
+
+#define MODES_CLIENT "iwoxz"
+
+#define MAX_USERNAME_LEN 18
+#define MAX_NICKNAME_LEN 9
+
 class	Server;
 class	Channel;
 
@@ -35,6 +44,15 @@ class	Client
 			VERIFIED = (1 << 0),
 			IDENTIFIED = (1 << 1)
 		}	t_serverPermissions;
+
+		typedef enum ClientMode
+		{
+			INVISIBLE = (1 << 0),				// Invisible in channel user lists or queries (i)
+			WALLOPS = (1 << 1),					// Allow server-wide notifications reception (w)
+			OPERATOR = (1 << 2),				// General operator privileges (o)
+			SSL_TLS = (1 << 3),					// connected in SSL mode (x)
+			HIDE_HOSTNAME = (1 << 4)			// Secure connection. Hides user's hostname (z)
+		}	t_clientMode;
 
 		typedef std::vector<Client*>			Clients;
 		typedef std::map<std::string, Channel*>	Channels;
@@ -67,6 +85,9 @@ class	Client
 		void				joinChannel(Channel *channel);
 		void				quitChannel(Channel *channel);
 
+		int					addClientMode(const char &mode, const std::string &argument);
+		int					removeClientMode(const char &mode);
+
 		// Getter
 		std::string			&getBuffer(void);
 		int					getSocketFd(void) const;
@@ -81,14 +102,25 @@ class	Client
 		Channels			&getJoinedChannels(void);
 		Channel				*getActiveChannel(void);
 
+		const std::string	getClientModes(void) const;
+		int					getClientModesMask(void) const;
+
+		const std::string	getPrefix(void) const;
+
 		// Setter
 		void				setNickname(const std::string &nickname);
 		void				setUsername(const std::string &username);
 		void				setHostname(const std::string &hostname);
 		void				setServername(const std::string &servername);
 		void				setRealname(const std::string &realname);
-		void				setServerPermissions(const int &mask);
 		void				setActiveChannel(Channel *channel);
+
+		void				setServerPermissions(const int &mask);
+		void				setClientModesMask(const int &mask);
+
+		/* Static */
+		static bool			isClientMode(const char &mode);
+		static bool			isValidNickname(const std::string &nickname);
 
 	protected:
 		/* Attributs */
@@ -106,6 +138,7 @@ class	Client
 		int					_serverPermissions;
 		std::string			_password; // encryption :(
 		short				_connectionRetries;
+		int					_modesMask;
 
 		std::string			_nickname;
 		std::string			_username;
@@ -119,4 +152,8 @@ class	Client
 		Client(void);
 
 		/* Member functions */
+
+		/* Static */
+		static int			clientModeToMask(const char &mode);
+		static std::string	clientMaskToModes(const int &mask);
 };
