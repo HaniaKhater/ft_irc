@@ -6,7 +6,7 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/11/09 14:34:09 by hania             #+#    #+#             */
-/*   Updated: 2023/11/15 09:16:44 by hania            ###   ########.fr       */
+/*   Updated: 2023/11/19 20:07:45 by hania            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 const int			botTimeOut = 1800;
 const std::string	delim = "\r\n";
 const char			*botInput = "./config/bot.config";
+const std::string	no_pause = "You made a mistake... you added a bad joke (formatting)";
 
 void		send_msg(int sd, std::string msg) {
 	msg += delim;
@@ -87,13 +88,17 @@ std::vector<std::string>	getJokes() {
 void		sendJoke(int sd, std::string channel, std::vector<std::string> jokes)
 {
 	int				line_nb = 0;
-	int				pause = 0;
+	size_t			pause = 0;
 	std::string		joke;
 
 	srand(time(NULL));
 	line_nb = std::rand() % jokes.size() + 1;
 	joke = jokes[line_nb];
 	pause = joke.find("... ");
+	if (pause == std::string::npos) {
+		joke = no_pause;
+		pause = joke.find("... ");
+	}
 	send_msg(sd, "PRIVMSG " + channel + " :" + joke.substr(0, pause + 3));
 	sleep(3);
 	send_msg(sd, "PRIVMSG " + channel + " :" + joke.substr(pause, joke.length()));

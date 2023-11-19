@@ -6,7 +6,7 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/10/14 11:48:29 by nicolas           #+#    #+#             */
-/*   Updated: 2023/11/15 11:22:17 by nicolas          ###   ########.fr       */
+/*   Updated: 2023/11/19 19:50:43 by hania            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,7 +35,7 @@
 #define CLIENT_CONNECTED 1
 #define CLIENT_DISCONNECTED 0
 
-#define DELIMITER "\r\n"
+#define DELIMITER "\n"
 #define MSG_BUFFER_SIZE 512
 #define MAX_CONNECTION_RETRIES 3
 

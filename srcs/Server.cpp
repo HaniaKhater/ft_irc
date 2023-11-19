@@ -6,7 +6,7 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/10/14 11:49:23 by nicolas           #+#    #+#             */
-/*   Updated: 2023/11/15 11:37:10 by nicolas          ###   ########.fr       */
+/*   Updated: 2023/11/19 20:37:21 by hania            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -113,7 +113,7 @@ Server::Server(void):
 
 	setCommands();
 	std::cout << BLUE << "Server is now running..." << WHITE << std::endl;
-	
+
 	{
 		const ServerSockets::Sockets	&sockets = _serverSockets.getSockets();
 
@@ -834,9 +834,9 @@ void	Server::kick(const t_commandParams &commandParams)
 			"Not enough privileges");
 
 	Client			*targetClient = targetUser->client;
-	std::string		kickMsg = getCommandResponse(source, "KICK", targetChannel->getName()
-		+ " " + targetClient->getNickname() + " " + source->getNickname(), "");
-
+	std::string	kickMsg = ":" + source->getNickname() + "!" + source->getUsername() + "@" +
+					source->getHostname() + " KICK " + targetChannel->getName() + " " +
+					targetClient->getNickname() + source->getNickname() + "\r\n";
 	targetUser->client->quitChannel(targetChannel);
 
 	source->receiveMessage(kickMsg);
@@ -1433,14 +1433,10 @@ void	Server::ping(const t_commandParams &commandParams)
 		errCommand(commandParams.source, ERR_NEEDMOREPARAMS, "", "Too many parameters");
 
 	Client				*source = commandParams.source;
-	const std::string	&pongId = commandParams.arguments[0];
 
-	/*
-	std::string	pong = source->getHostname() + "\r\n: PONG " + source->getUsername() + "\r\n :" + commandParams.arguments[0] + "\r\n";
-
+	std::string	pong = source->getHostname() + "\r\n: PONG " + source->getUsername() + " :\r\n" + commandParams.arguments[0] + "\r\n";
+// source, "PONG", pongId, ""
 	source->receiveMessage(pong);
-	*/
-	source->receiveMessage(getCommandResponse(source, "PONG", pongId, ""));
 }
 
 /* ************************************************************************** */
