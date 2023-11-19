@@ -12,6 +12,9 @@ Here is the setup process (for example, address=localhost and port=6667):</br>
 Here is an example of using our irc server:</br>
 <img title="HexChat_example" alt="example of a channel conversation" src="/Readme_content/HexChat_example.png">
 
+Here is an example of my bot:</br>
+<img title="Bot_example" alt="example of a bot conversation" src="/Readme_content/Bot_example.png">
+
 ## Subject
 
 We musn't develop a client nor handle server-to-server communication and use C++98.
