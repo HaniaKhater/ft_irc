@@ -6,7 +6,7 @@
 /*   By: hania <hania@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/11/09 14:34:09 by hania             #+#    #+#             */
-/*   Updated: 2023/11/19 20:07:45 by hania            ###   ########.fr       */
+/*   Updated: 2023/11/19 22:05:54 by hania            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,6 +65,9 @@ bool		targeted(std::string msg, std::string nick, std::string channel) {
 		|| msg.find("PRIVMSG " + nick + delim) != std::string::npos
 		|| msg.find("@" + nick + "\n") != std::string::npos
 		|| msg.find("@" + nick + " ") != std::string::npos
+		|| msg.find("@" + nick + ",") != std::string::npos
+		|| msg.find("@" + nick + ".") != std::string::npos
+		|| msg.find("@" + nick + "!") != std::string::npos
 		|| msg.find("@" + nick + delim) != std::string::npos)
 		&& (msg.find("NOTICE") == std::string::npos &&
 		msg.find("353 " + nick + " = " + channel + " :@" + nick) == std::string::npos));
@@ -100,6 +103,6 @@ void		sendJoke(int sd, std::string channel, std::vector<std::string> jokes)
 		pause = joke.find("... ");
 	}
 	send_msg(sd, "PRIVMSG " + channel + " :" + joke.substr(0, pause + 3));
-	sleep(3);
+	sleep(2);
 	send_msg(sd, "PRIVMSG " + channel + " :" + joke.substr(pause, joke.length()));
 }
