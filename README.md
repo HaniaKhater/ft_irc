@@ -1,12 +1,20 @@
 # ft_irc
 
-Reference client: HexChat
-
 IRC stands for Internet Chat Relay.Our project is creating our own IRC server acessible by an actual IRC client. Internet is ruled by solid standards protocols that allow connected computers to interact with each other. Let's discover this.
+
+## HexChat
+
+We chose HexChat as our reference client because it has both a Graphical User Interface and a Text User Interface.
+
+Here is the setup process (for example, address=localhost and port=6667):</br>
+<img title="HexChat Set-up" alt="creating a new server and connecting" src="/Readme_content/HexChat_Setup.gif">
+
+Here is an example of using our irc server:</br>
+<img title="HexChat_example" alt="example of a channel conversation" src="/Readme_content/HexChat_example.png">
 
 ## Subject
 
-We musn't develope a client nor handle server-to-server communication and use C++98.
+We musn't develop a client nor handle server-to-server communication and use C++98.
 - Our executable should run as follows : `./ircserv <port> <password>`.
 - Communication between client(s) and server should be done via `TCP/IP` (v4 or/and v6).
 - The server should be able to handle multiple clients at the same time and never hang.
